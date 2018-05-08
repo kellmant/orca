@@ -1,0 +1,28 @@
+[Unit]
+Description=Docker Private Registry
+
+[Service]
+EnvironmentFile=/etc/environment
+EnvironmentFile=-/efs/services/environment
+TimeoutStartSec=0
+KillMode=none
+RestartSec=7s
+Restart=always
+
+ExecStartPre=-/bin/bash -c 'mkdir -p /efs/services/%p'
+ExecStartPre=-/usr/bin/docker kill %p.%i
+ExecStartPre=-/usr/bin/docker rm %p.%i
+ExecStartPre=-/usr/bin/etcdctl set stream " - %H is bringing %N service ONLINE - "
+ExecStartPre=-/usr/bin/etcdctl rm fail/%p/%i
+
+ExecStart=/usr/bin/docker run --rm -h %p -v /efs/services/registry:/var/lib/registry -v /efs/ca/local:/ca --name %p.%i -e REGISTRY_HTTP_TLS_CERTIFICATE=/ca/local.cert.pem -e REGISTRY_HTTP_TLS_KEY=/ca/local.key.pem -e TZ="America/Toronto" -p 5000:5000 registry:2
+ExecStartPost=-/usr/bin/etcdctl set ops/%p/%i "${COREOS_PRIVATE_IPV4}"
+
+ExecStop=-/usr/bin/docker stop %p.%i
+ExecStopPost=-/usr/bin/etcdctl set stream " - Service %N is going OFFLINE on %H - "
+ExecStopPost=-/usr/bin/etcdctl rm ops/%p/%i
+ExecStopPost=-/bin/bash -c 'etcdctl set fail/%p/%i "$(date -u +%%s)"'
+
+[X-Fleet]
+MachineMetadata=situation=%i 
+Conflicts=%p@*.service

@@ -1,0 +1,11 @@
+#!/bin/bash
+# 
+# 
+#
+cd /etc/ssl
+
+openssl ca -config intermediate/openssl.cnf -gencrl -out intermediate/crl/crl.pem
+cp intermediate/crl/crl.pem /web/root/crl.pem
+cp intermediate/crl/crl.pem /ca/local/crl.pem
+
+exit 0

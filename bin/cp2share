@@ -1,0 +1,20 @@
+#!/bin/bash
+#
+mkdir -p /ca/root
+mkdir -p /web/root
+mkdir -p /ca/domain
+mkdir -p /ca/host
+mkdir -p /ca/local
+cd /etc/ssl
+        cp -f certs/root.cert.pem /ca/root/ 
+        cp -f certs/root.cert.pem /web/root/root.crt 
+        cp intermediate/certs/ca-chain.cert.pem /ca/root/
+        cp -f intermediate/certs/ca-chain.cert.pem /web/root/chain.crt
+        cp intermediate/certs/ca.cert.pem /ca/root/
+        cp -f intermediate/certs/ca.cert.pem /web/root/ca.crt
+        cp -f intermediate/certs/local.cert.pem /ca/local/
+        cp -f intermediate/private/local.key.pem /ca/local/
+        chmod a+r /ca/local/local.key.pem
+        cp -f intermediate/crl/intermediate.crl.pem /ca/root/crl.pem
+        cp -f intermediate/crl/intermediate.crl.pem /web/root/crl.pem
+exit 0

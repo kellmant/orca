@@ -1,0 +1,22 @@
+#!/bin/bash
+# create the master controller
+#
+#
+
+cd /etc/ssl
+
+openssl genrsa -out intermediate/private/${THEMASTER}.key.pem 2048
+chmod 400 intermediate/private/${THEMASTER}.key.pem
+
+openssl req -config intermediate/openssl.cnf -key intermediate/private/${THEMASTER}.key.pem -new -sha256 -out intermediate/csr/${THEMASTER}.csr.pem -subj "/C=CA/ST=Denial/L=Cloud/O=Gateway In The Sky/OU=Boss/CN=${THEMASTER}"
+openssl ca -config intermediate/openssl.cnf -batch -extensions usr_cert -days 375 -notext -md sha256 -in intermediate/csr/${THEMASTER}.csr.pem -out intermediate/certs/${THEMASTER}.cert.pem
+chmod 444 intermediate/certs/${THEMASTER}.cert.pem
+
+openssl x509 -noout -text -in intermediate/certs/${THEMASTER}.cert.pem
+#openssl verify -CAfile intermediate/certs/ca-chain.cert.pem intermediate/certs/${THEMASTER}.cert.pem
+
+openssl pkcs12 -export -in intermediate/certs/${THEMASTER}.cert.pem -inkey intermediate/private/${THEMASTER}.key.pem -out /home/${THEMASTER}/${THEMASTER}.p12 -name "${THEMASTER}" -password pass:${PASSPHRASE}
+
+cp intermediate/certs/${THEMASTER}.cert.pem /home/${THEMASTER}/
+echo "done."
+exit 0

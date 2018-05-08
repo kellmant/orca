@@ -1,0 +1,20 @@
+#!/bin/bash
+#
+# nothing fancy
+# just run the commands to get a ca built and launched.
+#
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd $DIR
+rm -rf $PWD/cnf/*
+$PWD/gen_cnf
+docker build -t myca .
+rm -rf $PWD/cnf/*
+docker run --name ca -h root.seclab.cloud -v /efs/ca:/ca -v /efs/home:/home -v /efs/services/nginx:/nginx -v /efs/share/cert:/web myca cp2share
+
+# fleetctl submit registry@.service
+# fleetctl start registry@core-a registry@core-b registry@core-c
+# docker commit ca registry:5000/ca:latest
+# docker push registry:5000/ca:latest
+# docker rmi registry:5000/ca:latest
+#
+

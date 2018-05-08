@@ -1,0 +1,8 @@
+#!/bin/bash
+#
+if [ -z "${1}" ] ; then
+	echo "pem file?"
+	exit
+fi
+
+openssl x509 -in $1 -noout -subject

@@ -1,0 +1,35 @@
+#!/bin/bash
+stamp=$$
+PASSPHRASE="$(xkcdpass)"
+
+PROTO="http"
+KEYHOST="${PROTO}://keystore:2379"
+KEYSTORE="${KEYHOST}/v2/keys"
+trustedca="/path/to/ca-chain.crt"
+clientcrt="/path/to/client.pem"
+clientkey="/path/to/client.key"
+ttlauth=900
+ttldn=1209600
+cmdhost=$(hostname)
+
+# we can use keystore or local var to manage the rest.
+# your call.
+#
+KEYCURL="curl -s"
+
+if [ "$PROTO" != "https" ] ; then
+	restget="$KEYCURL -L"
+	restput="$KEYCURL -XPUT"
+	else
+	restget="$KEYCURL --cacert ${trustedca} --cert ${clientcrt} --key ${clientkey} -L"
+	restput="$KEYCURL --cacert ${trustedca} --cert ${clientcrt} --key ${clientkey} -XPUT"
+fi
+
+    SETARN="$restput $KEYSTORE/sys/${BUDDY}/arn"
+    PASSIT="$restput $KEYSTORE/sys/${BUDDY}/pass"
+    PASSURL="$restput $KEYSTORE/sys/${BUDDY}/url"
+    PASSDN="$restput $KEYSTORE/sys/${BUDDY}/dn"
+    PASSFP="$restput $KEYSTORE/sys/${BUDDY}/verify"
+    MSGBUS="$restput $KEYSTORE/stream"
+
+eval ${MSGBUS} "$cmdhost |" 

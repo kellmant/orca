@@ -1,0 +1,23 @@
+[Unit]
+Description=%p %i and generate cert
+
+[Service]
+EnvironmentFile=/etc/environment
+EnvironmentFile=/efs/services/environment
+TimeoutStartSec=0
+Type=oneshot
+KillMode=none
+#Restart=on-failure
+
+# set the run commmand for the main container process here!
+ExecStart=/usr/bin/docker run -h ca.seclab.cloud --name %p.%i -v /efs/services/nginx:/nginx -v /efs/ca:/ca -v /efs/home:/home -v /efs/share/cert:/web registry:5000/ca:latest '%p %i'
+ExecStop=-/bin/bash -c 'etcdctl set micro/ca/%p/%i "$(date -d \"+14 days\")"'
+ExecStopPost=-/usr/bin/docker tag registry:5000/ca:latest registry:5000/ca:last
+ExecStopPost=-/usr/bin/docker commit %p.%i registry:5000/ca:latest
+ExecStopPost=-/usr/bin/docker push registry:5000/ca:latest
+ExecStopPost=-/usr/bin/docker rm %p.%i
+ExecStopPost=-/usr/bin/docker rmi registry:5000/ca:last
+ExecStopPost=-/usr/bin/docker rmi registry:5000/ca:latest
+ExecStopPost=-/usr/bin/fleetctl destroy %p@%i
+
+[X-Fleet]

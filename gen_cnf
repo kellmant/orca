@@ -1,0 +1,317 @@
+#!/bin/bash
+#
+rootcnf="cnf/root.openssl.cnf"
+cacnf="cnf/ca.openssl.cnf"
+localname=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region' | cut -d '-' -f 2- | tr -d '-')
+localcnf="cnf/local.cnf"
+rdir="/etc/ssl"
+idir="/etc/ssl/intermediate"
+
+mkdir -p $PWD/cnf
+
+cat > $rootcnf <<EOFF
+# OpenSSL root CA configuration file.
+[ ca ]
+# man ca
+default_ca = CA_default
+
+[ CA_default ]
+# Directory and file locations.
+dir		  = $rdir
+certs             = $rdir/certs
+crl_dir           = $rdir/crl
+new_certs_dir     = $rdir/newcerts
+database          = $rdir/index.txt
+serial            = $rdir/serial
+RANDFILE          = $rdir/private/.rand
+
+# The root key and root certificate.
+private_key       = $rdir/private/root.key.pem
+certificate       = $rdir/certs/root.cert.pem
+
+# For certificate revocation lists.
+crlnumber         = $rdir/crlnumber
+crl               = $rdir/crl/crl.pem
+crl_extensions    = crl_ext
+default_crl_days  = 30
+
+# SHA-1 is deprecated, so use SHA-2 instead.
+default_md        = sha256
+
+name_opt          = ca_default
+cert_opt          = ca_default
+default_days      = 375
+preserve          = no
+policy            = policy_strict
+
+[ policy_strict ]
+# The root CA should only sign intermediate certificates that match.
+# See the POLICY FORMAT section of man ca.
+countryName             = match
+stateOrProvinceName     = match
+organizationName        = match
+organizationalUnitName  = optional
+commonName              = supplied
+emailAddress            = optional
+
+[ policy_loose ]
+# Allow the intermediate CA to sign a more diverse range of certificates.
+# See the POLICY FORMAT section of the ca man page.
+countryName             = optional
+stateOrProvinceName     = optional
+localityName            = optional
+organizationName        = optional
+organizationalUnitName  = optional
+commonName              = supplied
+emailAddress            = optional
+
+[ req ]
+# Options for the req tool (man req).
+default_bits        = 2048
+distinguished_name  = req_distinguished_name
+string_mask         = utf8only
+
+# SHA-1 is deprecated, so use SHA-2 instead.
+default_md          = sha256
+
+# Extension to add when the -x509 option is used.
+x509_extensions     = v3_ca
+
+[ req_distinguished_name ]
+# See <https://en.wikipedia.org/wiki/Certificate_signing_request>.
+countryName                     = Country Name (2 letter code)
+stateOrProvinceName             = State or Province Name
+localityName                    = Locality Name
+0.organizationName              = Organization Name
+organizationalUnitName          = Organizational Unit Name
+commonName                      = Common Name
+emailAddress                    = Email Address
+
+# Optionally, specify some defaults.
+countryName_default             = CA 
+stateOrProvinceName_default     = Ontario
+localityName_default            =
+0.organizationName_default      = Securing Labs
+organizationalUnitName_default  = seclab.cloud
+commonName_default              = root.seclab.cloud
+emailAddress_default            = kmeghu@sycomp.com
+
+[ v3_ca ]
+# Extensions for a typical CA (man x509v3_config).
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = CA:true
+keyUsage = digitalSignature, cRLSign, keyCertSign
+
+[ v3_intermediate_ca ]
+# Extensions for a typical intermediate CA (man x509v3_config).
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = CA:true, pathlen:0
+keyUsage = digitalSignature, cRLSign, keyCertSign
+
+[ usr_cert ]
+# Extensions for client certificates (man x509v3_config).
+basicConstraints = CA:FALSE
+nsCertType = client, email
+nsComment = "OpenSSL Generated Client Certificate"
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+extendedKeyUsage = clientAuth, emailProtection
+
+[ server_cert ]
+# Extensions for server certificates (man x509v3_config).
+basicConstraints = CA:FALSE
+nsCertType = server
+nsComment = "Serverless CA Generated Server Certificate"
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer:always
+keyUsage = digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth, clientAuth
+
+[ crl_ext ]
+# Extension for CRLs (man x509v3_config).
+authorityKeyIdentifier=keyid:always
+
+# This really needs to be in place for it to be a proxy certificate.
+proxyCertInfo=language:id-ppl-anyLanguage,pathlen:3,policy:foo
+
+[ ocsp ]
+# Extension for OCSP signing certificates (man ocsp).
+basicConstraints = CA:FALSE
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer
+keyUsage = critical, digitalSignature
+extendedKeyUsage = critical, OCSPSigning
+EOFF
+
+cat > $cacnf <<EOFF
+# OpenSSL intermediate CA configuration file.
+# Copy to /root/ca/intermediate/openssl.cnf.
+
+[ ca ]
+# man ca
+default_ca = CA_default
+
+[ CA_default ]
+# Directory and file locations.
+dir		  = $idir
+certs             = $idir/certs
+crl_dir           = $idir/crl
+new_certs_dir     = $idir/newcerts
+database          = $idir/index.txt
+serial            = $idir/serial
+RANDFILE          = $idir/private/.rand
+
+# The root key and root certificate.
+private_key       = $idir/private/ca.key.pem
+certificate       = $idir/certs/ca.cert.pem
+
+# For certificate revocation lists.
+crlnumber         = $idir/crlnumber
+crl               = $idir/crl/crl.pem
+crl_extensions    = crl_ext
+default_crl_days  = 30
+
+# SHA-1 is deprecated, so use SHA-2 instead.
+default_md        = sha256
+
+name_opt          = ca_default
+cert_opt          = ca_default
+default_days      = 375
+preserve          = no
+policy            = policy_loose
+
+[ policy_strict ]
+# The root CA should only sign intermediate certificates that match.
+# See the POLICY FORMAT section of man ca.
+countryName             = match
+stateOrProvinceName     = match
+organizationName        = match
+organizationalUnitName  = optional
+commonName              = supplied
+emailAddress            = optional
+
+[ policy_loose ]
+# Allow the intermediate CA to sign a more diverse range of certificates.
+# See the POLICY FORMAT section of the ca man page.
+countryName             = optional
+stateOrProvinceName     = optional
+localityName            = optional
+organizationName        = optional
+organizationalUnitName  = optional
+commonName              = supplied
+emailAddress            = optional
+
+[ req ]
+# Options for the req tool (man req).
+default_bits        = 2048
+distinguished_name  = req_distinguished_name
+string_mask         = utf8only
+
+# SHA-1 is deprecated, so use SHA-2 instead.
+default_md          = sha256
+
+# Extension to add when the -x509 option is used.
+x509_extensions     = v3_ca
+
+
+[ req_distinguished_name ]
+# See <https://en.wikipedia.org/wiki/Certificate_signing_request>.
+countryName                     = Country Name (2 letter code)
+stateOrProvinceName             = State or Province Name
+localityName                    = Locality Name
+0.organizationName              = Organization Name
+organizationalUnitName          = Organizational Unit Name
+commonName                      = Common Name
+emailAddress                    = Email Address
+
+# Optionally, specify some defaults.
+countryName_default             = CA
+stateOrProvinceName_default     = Ontario
+localityName_default            =
+0.organizationName_default      = Securing Labs
+organizationalUnitName_default  = seclab.cloud
+
+[ v3_ca ]
+# Extensions for a typical CA (man x509v3_config).
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = CA:true
+keyUsage = digitalSignature, cRLSign, keyCertSign
+
+[ v3_intermediate_ca ]
+# Extensions for a typical intermediate CA (man x509v3_config).
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = CA:true, pathlen:0
+keyUsage = digitalSignature, cRLSign, keyCertSign
+dir		  = $idir
+
+[ usr_cert ]
+# Extensions for client certificates (man x509v3_config).
+basicConstraints = CA:FALSE
+nsCertType = client, email
+nsComment = "OpenSSL Generated Client Certificate"
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+extendedKeyUsage = clientAuth, emailProtection
+
+[ server_cert ]
+# Extensions for server certificates (man x509v3_config).
+basicConstraints = CA:FALSE
+nsCertType = server
+nsComment = "Private Server Certificate"
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer:always
+keyUsage = digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth, clientAuth
+crlDistributionPoints = URI:https://cert.securinglabs.online/root/crl.pem
+# Extensions to add to a certificate request
+subjectAltName = @alt_names
+
+
+[ crl_ext ]
+# Extension for CRLs (man x509v3_config).
+authorityKeyIdentifier=keyid:always
+
+[ ocsp ]
+# Extension for OCSP signing certificates (man ocsp).
+basicConstraints = CA:FALSE
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer
+keyUsage = critical, digitalSignature
+extendedKeyUsage = critical, OCSPSigning
+EOFF
+
+
+cat > $localcnf <<EOFF
+[req_distinguished_name]
+countryName = Country Name (2 letter code)
+stateOrProvinceName = State or Province Name (full name)
+localityName = Locality Name (eg, city)
+organizationalUnitName	= Organizational Unit Name (eg, section)
+commonName = Common Name (eg, YOUR name)
+commonName_max	= 64
+emailAddress = Email Address
+emailAddress_max = 40
+
+[req]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+
+[v3_req] 
+keyUsage = keyEncipherment, dataEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = registry
+DNS.2 = keystore
+DNS.3 = shell
+DNS.4 = core
+DNS.5 = *.${localname}
+DNS.6 = *.*.${localname}
+EOFF

@@ -1,0 +1,88 @@
+#!/bin/bash
+# 
+# add a friend
+# I'm going to need to send text number SMS
+# and the name of my new BUD
+# 
+#
+if [ -z ${1} ] ; then
+	echo "No user info sent."
+	exit 0
+fi
+stamp=$(head -c 32 /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 32)
+BUDDY="${1}"
+BUD="${1}${stamp}"
+PASSPHRASE="$(xkcdpass)"
+
+PROTO="http"
+KEYHOST="${PROTO}://keystore:2379"
+ETCDCTL_ENDPOINTS=${KEYHOST}
+KEYSTORE="${KEYHOST}/v2/keys"
+trustedca="/path/to/ca-chain.crt"
+clientcrt="/path/to/client.pem"
+clientkey="/path/to/client.key"
+ttlauth=900
+ttldn=1209600
+cmdhost=$(hostname)
+
+# we can use keystore or local var to manage the rest.
+# your call.
+#
+KEYCURL="curl -s"
+
+if [ "$PROTO" != "https" ] ; then
+	restget="$KEYCURL -L"
+	restput="$KEYCURL -XPUT"
+	else
+	restget="$KEYCURL --cacert ${trustedca} --cert ${clientcrt} --key ${clientkey} -L"
+	restput="$KEYCURL --cacert ${trustedca} --cert ${clientcrt} --key ${clientkey} -XPUT"
+fi
+
+    PASSIT="$restput $KEYSTORE/sys/${BUDDY}/pass"
+    PASSURL="$restput $KEYSTORE/sys/${BUDDY}/url"
+    PASSDN="$restput $KEYSTORE/sys/${BUDDY}/dn"
+    PASSFP="$restput $KEYSTORE/sys/${BUDDY}/verify"
+
+
+
+cd /etc/ssl
+
+openssl genrsa -out intermediate/private/${BUD}.key.pem 2048
+#cp -f intermediate/private/${BUD}.key.pem /home/${BUD}/
+chmod 400 intermediate/private/${BUD}.key.pem
+
+openssl req -config intermediate/openssl.cnf -key intermediate/private/${BUD}.key.pem -new -sha256 -out intermediate/csr/${BUD}.csr.pem -subj "/C=CA/ST=Denial/L=Cloud/O=Securing Labs/OU=private/CN=${BUD}"
+openssl ca -config intermediate/openssl.cnf -batch -extensions usr_cert -days 15 -notext -md sha256 -in intermediate/csr/${BUD}.csr.pem -out intermediate/certs/${BUD}.cert.pem
+
+#cp intermediate/certs/${BUD}.cert.pem /home/${BUD}/${BUD}.cert.pem
+#cat intermediate/certs/${BUD}.cert.pem > /home/${BUD}/${BUD}.crt
+#cat intermediate/private/${BUD}.key.pem >> /home/${BUD}/${BUD}.crt
+
+mkdir -p /ca/usr/${BUDDY}
+rm -rf /ca/usr/${BUDDY}/*.p12
+rm -rf /ca/usr/${BUDDY}/x509.*
+rm -rf /ca/usr/${BUDDY}/verify.*
+
+openssl x509 -noout -text -in intermediate/certs/${BUD}.cert.pem > /ca/usr/${BUDDY}/x509.${BUD}
+openssl verify -CAfile intermediate/certs/ca-chain.cert.pem intermediate/certs/${BUD}.cert.pem > /ca/usr/${BUDDY}/verify.${BUD}
+#openssl x509 -in $1 -noout -subject
+fprint=$(openssl x509 -in intermediate/certs/${BUD}.cert.pem -noout -fingerprint | cut -d '=' -f 2)
+cp -f intermediate/certs/${BUD}.cert.pem /ca/usr/${BUDDY}/${BUDDY}.cert.pem
+cp -f intermediate/private/${BUD}.key.pem /ca/usr/${BUDDY}/${BUDDY}.key.pem
+cat intermediate/certs/${BUD}.cert.pem > /ca/usr/${BUDDY}/${BUDDY}.crt
+cat intermediate/private/${BUD}.key.pem >> /ca/usr/${BUDDY}/${BUDDY}.crt
+chown -R 500 /ca/usr/${BUDDY}
+
+openssl pkcs12 -export -in intermediate/certs/${BUD}.cert.pem -inkey intermediate/private/${BUD}.key.pem -out /ca/usr/${BUDDY}/${BUD}.p12 -name "${BUD}" -password pass:${PASSPHRASE}
+
+cp -f /ca/usr/${BUDDY}/${BUD}.p12 /web/user/
+
+eval ${PASSIT} -d value=\"${PASSPHRASE}\" -d ttl=\"${ttlauth}\"
+eval ${PASSURL} -d value=\"https://cert.securinglabs.online/user/${BUD}.p12\" -d ttl=\"${ttldn}\"
+eval ${PASSDN} -d value=\"/C=CA/ST=Denial/L=Cloud/O=Securing Labs/OU=private/CN=${BUD}\" -d ttl=\"${ttldn}\"
+eval ${PASSFP} -d value=\"${fprint}\" -d ttl=\"${ttldn}\"
+
+sed -e "s^SUBJECTDN^/C=CA/ST=Denial/L=Cloud/O=Securing Labs/OU=private/CN=${BUD}^g" /nginx/tls.restricted > /nginx/tls.${BUDDY}
+
+exit 0
+

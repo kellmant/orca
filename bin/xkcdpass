@@ -1,0 +1,6 @@
+#!/bin/bash
+#
+#
+xpass=$(shuf -n4 /usr/local/share/dict/words | tr '\n' '-')
+xpass=${xpass%?}
+echo -n $xpass

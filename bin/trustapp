@@ -1,0 +1,78 @@
+#!/bin/bash
+# 
+# add a friend
+# I'm going to need to send text number SMS
+# and the name of my new BUD
+# 
+#
+if [ -z ${1} ] ; then
+	echo "No app info sent."
+	exit 0
+fi
+stamp=$(head -c 32 /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 32)
+APP="${1}"
+
+PROTO="http"
+KEYHOST="${PROTO}://keystore:2379"
+ETCDCTL_ENDPOINTS=${KEYHOST}
+KEYSTORE="${KEYHOST}/v2/keys"
+trustedca="/path/to/ca-chain.crt"
+clientcrt="/path/to/client.pem"
+clientkey="/path/to/client.key"
+ttlauth=900
+ttldn=1296000
+cmdhost=$(hostname)
+
+# we can use keystore or local var to manage the rest.
+# your call.
+#
+KEYCURL="curl -s"
+
+if [ "$PROTO" != "https" ] ; then
+	restget="$KEYCURL -L"
+	restput="$KEYCURL -XPUT"
+	else
+	restget="$KEYCURL --cacert ${trustedca} --cert ${clientcrt} --key ${clientkey} -L"
+	restput="$KEYCURL --cacert ${trustedca} --cert ${clientcrt} --key ${clientkey} -XPUT"
+fi
+
+    MSGBUS="$restput $KEYSTORE/stream"
+
+
+
+cd /etc/ssl
+
+if [ -f intermediate/private/${APP}.key.pem ] ; then
+    $MSGBUS 
+    exit 
+fi
+
+
+openssl genrsa -out intermediate/private/${APP}.key.pem 2048
+#cp -f intermediate/private/${BUD}.key.pem /home/${BUD}/
+chmod 400 intermediate/private/${APP}.key.pem
+
+openssl req -config intermediate/openssl.cnf -key intermediate/private/${APP}.key.pem -new -sha256 -out intermediate/csr/${APP}.csr.pem -subj "/C=CA/ST=Denial/L=Cloud/O=Securing Labs/OU=private/CN=${APP}"
+openssl ca -config intermediate/openssl.cnf -batch -extensions usr_cert -days 366 -notext -md sha256 -in intermediate/csr/${APP}.csr.pem -out intermediate/certs/${APP}.cert.pem
+
+#cp intermediate/certs/${BUD}.cert.pem /home/${BUD}/${BUD}.cert.pem
+#cat intermediate/certs/${BUD}.cert.pem > /home/${BUD}/${BUD}.crt
+#cat intermediate/private/${BUD}.key.pem >> /home/${BUD}/${BUD}.crt
+
+mkdir -p /ca/app/${APP}
+
+openssl x509 -noout -text -in intermediate/certs/${APP}.cert.pem > /ca/app/${APP}/x509.${APP}
+openssl verify -CAfile intermediate/certs/ca-chain.cert.pem intermediate/certs/${APP}.cert.pem > /ca/app/${APP}/verify.${APP}
+#openssl x509 -in $1 -noout -subject
+fprint=$(openssl x509 -in intermediate/certs/${BUD}.cert.pem -noout -fingerprint | cut -d '=' -f 2)
+eval $MSGBUS "Sending ${BUDDY} a cert with fingerprint ${fprint}"
+cp -f intermediate/certs/${APP}.cert.pem /ca/app/${APP}/app.cert.pem
+cp -f intermediate/private/${APP}.key.pem /ca/app/${APP}/app.key.pem
+cat /ca/app/${APP}/app.cert.pem > /ca/app/${APP}/app.crt
+cat /ca/app/${APP}/app.key.pem >> /ca/app/${APP}/app.crt
+chown -R 500 /ca/app/${APP}
+
+sed -e "s^SUBJECTDN^/C=CA/ST=Denial/L=Cloud/O=Securing Labs/OU=private/CN=${APP}^g" /nginx/tls.restricted > /nginx/auth.${APP}
+
+exit 0
+

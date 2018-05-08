@@ -1,0 +1,16 @@
+#!/bin/bash
+# 
+# 
+#
+if [ -z ${1} ] ; then
+        echo "No cert to revoke. "
+        exit 0
+fi
+
+cd /etc/ssl
+
+openssl ca -config intermediate/openssl.cnf -revoke intermediate/certs/${1}.cert.pem
+cp -f intermediate/crl/intermediate.crl.pem /ca/root/crl.pem
+cp -f intermediate/crl/intermediate.crl.pem /web/root/crl.pem  
+
+exit 0

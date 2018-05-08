@@ -1,0 +1,56 @@
+#!/bin/bash
+#
+if [ -z ${1} ] ; then
+exit 0
+fi
+
+USERCERT="${1}"
+DOMAINroot="securinglabs.online"
+DOMAIN="${USERCERT}.${DOMAINroot}"
+rootcnf="cnf/root.openssl.cnf"
+cacnf="cnf/ca.openssl.cnf"
+domcnf="cnf/${DOMAIN}.cnf"
+localcnf="cnf/local.cnf"
+rdir="/etc/ssl"
+idir="/etc/ssl/intermediate"
+
+cd $rdir
+
+cat > $domcnf <<EOFF
+[req_distinguished_name]
+countryName = Country Name (2 letter code)
+stateOrProvinceName = State or Province Name (full name)
+localityName = Locality Name (eg, city)
+organizationalUnitName	= Organizational Unit Name (eg, section)
+commonName = Common Name (eg, YOUR name)
+commonName_max	= 64
+emailAddress = Email Address
+emailAddress_max = 40
+
+[req]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+
+[v3_req] 
+keyUsage = keyEncipherment, dataEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = ${DOMAIN}
+DNS.2 = *.${DOMAIN}
+EOFF
+
+openssl genrsa -out intermediate/private/${DOMAIN}.key.pem 2048 
+
+chmod 400 intermediate/private/${DOMAIN}.key.pem
+
+openssl req -config $domcnf -key intermediate/private/${DOMAIN}.key.pem -new -out intermediate/csr/${DOMAIN}.csr.pem -days 330 -subj "/C=CA/ST=Denial/L=Cloud/O=Securing Labs/CN=${DOMAIN}"
+
+openssl x509 -req -days 330 -in intermediate/csr/${DOMAIN}.csr.pem -CA intermediate/certs/ca.cert.pem -CAkey intermediate/private/ca.key.pem -CAcreateserial -extensions v3_req -out intermediate/certs/${DOMAIN}.cert.pem -extfile $domcnf
+
+chmod 444 intermediate/certs/${DOMAIN}.cert.pem
+
+mkdir -p /ca/${USERCERT}/
+cp intermediate/certs/${DOMAIN}.cert.pem /ca/${USERCERT}/
+cp intermediate/private/${DOMAIN}.key.pem /ca/${USERCERT}/
