@@ -101,14 +101,14 @@ emailAddress_default            = kmeghu@sycomp.com
 subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid:always,issuer
 basicConstraints = CA:true
-keyUsage = digitalSignature, cRLSign, keyCertSign
+keyUsage = digitalSignature, cRLSign, keyCertSign, nonRepudiation
 
 [ v3_intermediate_ca ]
 # Extensions for a typical intermediate CA (man x509v3_config).
 subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid:always,issuer
 basicConstraints = CA:true, pathlen:0
-keyUsage = digitalSignature, cRLSign, keyCertSign
+keyUsage = digitalSignature, cRLSign, keyCertSign, nonRepudiation
 
 [ usr_cert ]
 # Extensions for client certificates (man x509v3_config).
@@ -127,7 +127,7 @@ nsCertType = server
 nsComment = "Serverless CA Generated Server Certificate"
 subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid,issuer:always
-keyUsage = digitalSignature, keyEncipherment
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
 extendedKeyUsage = serverAuth, clientAuth
 
 [ crl_ext ]
@@ -239,14 +239,14 @@ organizationalUnitName_default  = seclab.cloud
 subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid:always,issuer
 basicConstraints = CA:true
-keyUsage = digitalSignature, cRLSign, keyCertSign
+keyUsage = digitalSignature, cRLSign, keyCertSign, nonRepudiation
 
 [ v3_intermediate_ca ]
 # Extensions for a typical intermediate CA (man x509v3_config).
 subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid:always,issuer
 basicConstraints = CA:true, pathlen:0
-keyUsage = digitalSignature, cRLSign, keyCertSign
+keyUsage = digitalSignature, cRLSign, keyCertSign, nonRepudiation
 dir		  = $idir
 
 [ usr_cert ]
@@ -266,7 +266,7 @@ nsCertType = server
 nsComment = "Private Server Certificate"
 subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid,issuer:always
-keyUsage = digitalSignature, keyEncipherment
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
 extendedKeyUsage = serverAuth, clientAuth
 crlDistributionPoints = URI:https://cert.securinglabs.online/root/crl.pem
 # Extensions to add to a certificate request
@@ -303,7 +303,7 @@ distinguished_name = req_distinguished_name
 req_extensions = v3_req
 
 [v3_req] 
-keyUsage = keyEncipherment, dataEncipherment
+keyUsage = nonRepudiation, digitalSignature,  keyEncipherment, dataEncipherment
 extendedKeyUsage = serverAuth
 subjectAltName = @alt_names
 

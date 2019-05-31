@@ -32,7 +32,7 @@ distinguished_name = req_distinguished_name
 req_extensions = v3_req
 
 [v3_req] 
-keyUsage = keyEncipherment, dataEncipherment
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment, dataEncipherment
 extendedKeyUsage = serverAuth
 subjectAltName = @alt_names
 
@@ -45,7 +45,7 @@ openssl genrsa -out intermediate/private/${DOMAIN}.key.pem 2048
 
 chmod 400 intermediate/private/${DOMAIN}.key.pem
 
-openssl req -config $domcnf -key intermediate/private/${DOMAIN}.key.pem -new -out intermediate/csr/${DOMAIN}.csr.pem -days 330 -subj "/C=CA/ST=Denial/L=Cloud/O=Securing Labs/CN=${DOMAIN}"
+openssl req -config $domcnf -key intermediate/private/${DOMAIN}.key.pem -new -out intermediate/csr/${DOMAIN}.csr.pem -days 330 -subj "/C=CA/ST=Denial/L=Cloud/O=Securing Labs/OU=Public Cloud/CN=${DOMAIN}"
 
 openssl x509 -req -days 330 -in intermediate/csr/${DOMAIN}.csr.pem -CA intermediate/certs/ca.cert.pem -CAkey intermediate/private/ca.key.pem -CAcreateserial -extensions v3_req -out intermediate/certs/${DOMAIN}.cert.pem -extfile $domcnf
 
